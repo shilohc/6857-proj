@@ -1,5 +1,15 @@
 # 6.857 final project
 
+## Installing and running
+
+To install dependencies:
+
+```
+pip3 install -r requirements.txt
+```
+
+Currently, all the code for the encryption scheme test implementation lives in `encrypt.py`.
+
 ## Image compression
 
 The Instagram compression algorithm is proprietary and seems to be platform-dependent.  For better consistency and tunable parameters, we can use this ImageMagick command:
