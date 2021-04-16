@@ -25,3 +25,7 @@ convert feldroy-512x512-unoptimized.jpg \
 feldroy-512x512-combined.jpg 
 ```
 ([source](https://dev.to/feldroy/til-strategies-for-compressing-jpg-files-with-imagemagick-5fn9))
+
+## Test images
+
+`test_image_1`: https://commons.wikimedia.org/wiki/File:AsterNovi-belgii-flower-1mb.jpg (CC BY-SA 3.0)
