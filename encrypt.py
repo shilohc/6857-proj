@@ -2,11 +2,26 @@ import cv2
 import numpy as np
 import rsa
 import secrets
+import cmath, math
 
 def update_xyz(x, y, z, r):
     # TODO: implement
     # x, y, z are complex numbers!
     # use equations 1, 2, 3
+
+    ### NEED beta, which is dissipation parameter.
+    # beta = ??
+
+    #X
+    #x_new = r*(x-abs(x)**2) - r*y
+
+    #Y
+    #y_new = -y*math.exp(-2*beta)+math.exp(-beta)*r*((2-x-x.conjugate())*y-x*z.conjugate()-x.conjugate()*z) 
+    
+    #Z
+    #z_new = -z*math.exp(-2*beta)+math.exp(-beta)*r*(2*(1-x.conjugate())*z-2*x*y-x)
+    
+    #return x_new, y_new, z_new
     pass
 
 def gen_ciphertexts(pkb):
