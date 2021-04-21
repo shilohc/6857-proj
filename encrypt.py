@@ -38,6 +38,7 @@ def dct(u, v, img):
     if v == 0:
         sigma_v = np.sqrt(1/N)
 
+    # TODO(shiloh): should be elementwise
     cos_array = np.array([[(np.cos(u * (2*i + 1) * np.pi / (2*M)) \
             * np.cos(v * (2*j + 1) * np.pi / (2*N))) \
             for j in range(N)] for i in range(M)])
@@ -58,6 +59,7 @@ def inverse_dct(u, v, dct):
     if v == 0:
         sigma_v = np.sqrt(1/N)
 
+    # TODO(shiloh): should be elementwise
     cos_array = np.array([[(np.cos(u * (2*i + 1) * np.pi / (2*M)) \
             * np.cos(v * (2*j + 1) * np.pi / (2*N))) \
             for j in range(N)] for i in range(M)])
@@ -67,6 +69,10 @@ def gen_ciphertexts(pkb):
     # randomly select three messages (encoded as bytes)
     messages = [secrets.token_bytes(53) for i in range(3)]
     return messages, [rsa.encrypt(m, pkb) for m in messages]
+
+def read_keys(filename):
+    # TODO(murielle)
+    pass
 
 def enc(img, pkb):
     # Assumes a grayscale (one-channel) image.  I think we're supposed to
@@ -103,6 +109,7 @@ def enc(img, pkb):
         for k in range(1, (M*N)+1):
             sk_primes.append((np.fix(sum(xyzs[k+1])) * 1e14) % 256)
 
+        # TODO(ray)
         # TODO: row permutations
         # TODO: column permutations
         # TODO: discrete cosine transform coefficient matrix
