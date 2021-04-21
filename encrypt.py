@@ -4,25 +4,64 @@ import rsa
 import secrets
 import cmath, math
 
-def update_xyz(x, y, z, r):
-    # TODO: implement
-    # x, y, z are complex numbers!
-    # use equations 1, 2, 3
-
-    ### NEED beta, which is dissipation parameter.
-    # beta = ??
+def update_xyz(x, y, z, r=3.99, beta=6):
+    """
+    Updates x, y, z according to the quantum logistic map.  Default values of
+    the parameters beta and r are given on page 6 of the paper; the quantum
+    logistic map is given in equations 1-3.
+    Note that x, y, z are complex numbers.
+    """
 
     #X
-    #x_new = r*(x-abs(x)**2) - r*y
+    x_new = r*(x - abs(x)**2) - r*y
 
     #Y
-    #y_new = -y*math.exp(-2*beta)+math.exp(-beta)*r*((2-x-x.conjugate())*y-x*z.conjugate()-x.conjugate()*z) 
+    y_new = -y*math.exp(-2*beta) + math.exp(-beta)*r*((2-x-x.conjugate())*y - \
+            x*z.conjugate() - x.conjugate()*z)
     
     #Z
-    #z_new = -z*math.exp(-2*beta)+math.exp(-beta)*r*(2*(1-x.conjugate())*z-2*x*y-x)
+    z_new = -z*math.exp(-2*beta) + math.exp(-beta)*r*(2*(1-x.conjugate())*z - \
+            2*x*y - x)
     
-    #return x_new, y_new, z_new
-    pass
+    return x_new, y_new, z_new
+
+def dct(u, v, img):
+    """
+    Computes the discrete cosine transform at (u, v).  Assumes a grayscale
+    (one-channel) image.
+    """
+    M, N = img.shape
+    sigma_u = np.sqrt(2/M)
+    sigma_v = np.sqrt(2/N)
+    if u == 0:
+        sigma_u = np.sqrt(1/M)
+    if v == 0:
+        sigma_v = np.sqrt(1/N)
+
+    cos_array = np.array([[(np.cos(u * (2*i + 1) * np.pi / (2*M)) \
+            * np.cos(v * (2*j + 1) * np.pi / (2*N))) \
+            for j in range(N)] for i in range(M)])
+    dct_mat = sigma_u * sigma_v * img * cos_array
+    dct = np.sum(dct_mat)
+    return sigma_u * sigma_v * dct
+
+def inverse_dct(u, v, dct):
+    """
+    Computes the inverse discrete cosine transform at (u, v).  Assumes a
+    grayscale (one-channel) image.
+    """
+    M, N = img.shape
+    sigma_u = np.sqrt(2/M)
+    sigma_v = np.sqrt(2/N)
+    if u == 0:
+        sigma_u = np.sqrt(1/M)
+    if v == 0:
+        sigma_v = np.sqrt(1/N)
+
+    cos_array = np.array([[(np.cos(u * (2*i + 1) * np.pi / (2*M)) \
+            * np.cos(v * (2*j + 1) * np.pi / (2*N))) \
+            for j in range(N)] for i in range(M)])
+    return sigma_u * sigma_v * dct * cos_array
 
 def gen_ciphertexts(pkb):
     # randomly select three messages (encoded as bytes)
@@ -30,15 +69,13 @@ def gen_ciphertexts(pkb):
     return messages, [rsa.encrypt(m, pkb) for m in messages]
 
 def enc(img, pkb):
-    rows, cols = img.shape
+    # Assumes a grayscale (one-channel) image.  I think we're supposed to
+    # encrypt each channel separately.
     M, N = img.shape
     r = 0
-    for i in range(rows):
-        for j in range(cols):
-            # TODO: what's going on with image channels??
-            # using just the blue channel for now
-            pixel_b, pixel_g, pixel_r = img[i][j]
-            r += ((pixel_b + i + j)**2)**(1/5)
+    for i in range(M): # rows
+        for j in range(N): # cols
+            r += ((img[i][j] + i + j)**2)**(1/5)
     m, c = gen_ciphertexts(pkb)
     x_0, y_0, z_0 = [1/(abs(m[i] - c[i]) + r) for i in range(3)]
     x, y, z = x_0, y_0, z_0
