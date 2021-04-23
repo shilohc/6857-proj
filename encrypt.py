@@ -87,12 +87,32 @@ def read_keys(public_filename, private_filename):
     return public_key, private_key
 
 def sigma(x, L):
-    """ Helper function called by enc(img, pkb)."""
+    """ Helper function called by enc_channel."""
     if x==0:
         return np.sqrt(1/L)
     return np.sqrt(2/L)
 
 def enc(img, pkb):
+    """ Calls enc_channel on each channel in the image. """
+    image_dims = img.shape
+    # if image has one channel (grayscale)
+    if len(image_dims)==2:
+        return enc_channel(img, pkb)
+    # else if image has 3 or 4 channels (RGB or RGBA) 
+    if len(image_dims)==3 and (image_dims[2]==3 or image_dims[2]==4): 
+        cipher, r, enc_img = ([], [], [])
+        for channel in range(image_dims[2]):
+            cipher_channel, r_channel, enc_img_channel = enc_channel(img[:,:,channel], pkb)
+            cipher.append(cipher_channel)
+            r.append(r_channel)
+            enc_img.append(enc_img_channel)
+        enc_img = np.concatenate(enc_img, axis=2)
+        return (cipher, r, enc_img)
+    # else invalid image
+    return (None, None, None)
+
+def enc_channel(img, pkb):
+    """ Takes in one channel of the plain image and the public key, and returns the ciphertexts, r, and the encrypted image. """
     # Assumes a grayscale (one-channel) image.  I think we're supposed to
     # encrypt each channel separately.
     M, N = img.shape
@@ -128,7 +148,6 @@ def enc(img, pkb):
         for k in range(1, (M*N)+1):
             sk_primes.append((np.fix(sum(xyzs[k+1])) * 1e14) % 256)
 
-        # TODO(ray)
         # row permutations
         Xrk_prime = np.zeros((M,N))
         for i in range(M): # rows
@@ -164,10 +183,14 @@ def enc(img, pkb):
                 for u in range(M):
                     for v in range(N):
                         G[i][j] += sigma(u,M) * sigma(v,N) * F_dp[i][j] * np.cos(((2*i+1)*np.pi*u)/(2*M)) * np.cos(((2*j+1)*np.pi*v)/(2*N))
-        # TODO: generate encrypted image for round rk
-        #X_rk = np.zeros((M,N))
-        #for i in range(M):
-    # TODO: output ciphertexts, r, and encrypted image
+        # generate encrypted image for round rk
+        for ind in range(M*N):
+            val = G.flatten()[ind] ^ sk_primes[ind] ^ X_rk.flatten()[ind]
+            i = ind // N
+            j = ind % N
+            X_rk[i][j] = val
+    # output ciphertexts, r, and encrypted image
+    return (c, r, X_rk)
 
 def dec(img, ciphertexts, r, pkb, skb):
     # TODO: implement; should be inverse of enc
