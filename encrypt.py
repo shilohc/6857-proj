@@ -70,8 +70,8 @@ def gen_ciphertexts(pkb):
     messages = [secrets.token_bytes(53) for i in range(3)]
     return messages, [rsa.encrypt(m, pkb) for m in messages]
 
-def read_keys(public_filename, private_filename):
-    """  takes any two public and private key files 
+def read_keys(public_filename, secret_filename):
+    """  takes any two public and secret key files 
     returns rsa.key.PublicKey and rsa.key.PrivateKey types
     easily converted to string if need be"""
     #TESTED and working!
@@ -80,11 +80,11 @@ def read_keys(public_filename, private_filename):
         key_data = public_file.read()
         public_key = rsa.PublicKey.load_pkcs1_openssl_pem(key_data)
 
-    with open(private_filename, mode='rb') as private_file:
-        key_data = private_file.read()
-        private_key = rsa.PrivateKey.load_pkcs1(key_data)
+    with open(secret_filename, mode='rb') as secret_file:
+        key_data = secret_file.read()
+        secret_key = rsa.PrivateKey.load_pkcs1(key_data)
 
-    return public_key, private_key
+    return public_key, secret_key
 
 def sigma(x, L):
     """ Helper function called by enc_channel."""
@@ -196,8 +196,7 @@ def dec(img, ciphertexts, r, pkb, skb):
     # TODO: implement; should be inverse of enc
     pass
 
-
 if __name__ == "__main__":
-    read_keys("rsa-keys/public.pem", "rsa-keys/private.pem") #test with valid RSA key pair
-    update_xyz(1+3j, 2-4j, 4+2j, r=3.99, beta=6) #random complex number test
-
+    pk, sk = read_keys("rsa-keys/public.pem", "rsa-keys/private.pem") #test with valid RSA key pair
+    #update_xyz(1+3j, 2-4j, 4+2j, r=3.99, beta=6) #random complex number test
+    c, r, enc_img = enc(cv2.imread("test_image_1.jpg"), pk)
