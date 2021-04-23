@@ -10,6 +10,9 @@ pip3 install -r requirements.txt
 
 Currently, all the code for the encryption scheme test implementation lives in `encrypt.py`.
 
+## Encryption scheme
+Our code implements the image encryption scheme described in [this paper](https://www.nature.com/articles/s41598-020-78127-2).
+
 ## Image compression
 
 The Instagram compression algorithm is proprietary and seems to be platform-dependent.  For better consistency and tunable parameters, we can use this ImageMagick command:
