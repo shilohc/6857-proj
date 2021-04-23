@@ -3,6 +3,7 @@ import numpy as np
 import rsa
 import secrets
 import cmath, math
+import sys
 
 def update_xyz(x, y, z, r=3.99, beta=6):
     """
@@ -121,7 +122,9 @@ def enc_channel(img, pkb):
         for j in range(N): # cols
             r += ((img[i][j] + i + j)**2)**(1/5)
     m, c = gen_ciphertexts(pkb)
-    x_0, y_0, z_0 = [1/(abs(m[i] - c[i]) + r) for i in range(3)]
+    m_int = [int.from_bytes(m_i, sys.byteorder) for m_i in m]
+    c_int = [int.from_bytes(c_i, sys.byteorder) for c_i in c]
+    x_0, y_0, z_0 = [1/(abs(m_int[i] - c_int[i]) + r) for i in range(3)]
     x, y, z = x_0, y_0, z_0
     for i in range(500):
         x, y, z = update_xyz(x, y, z, r)
