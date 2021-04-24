@@ -61,7 +61,11 @@ def inverse_dct(u, v, dct):
     return sigma_u * sigma_v * dct * cos_array
 
 def gen_ciphertexts(pkb):
-    # randomly select three messages (encoded as bytes)
+    """
+    Randomly select three messages, encoded as bytes, then use the messages and the public key to generate three ciphertexts. The messages can be at most (length of public key in bytes - 11) bytes long. 
+
+    Returns the messages and ciphertexts. 
+    """
     messages = [secrets.token_bytes(53) for i in range(3)]
     return messages, [rsa.encrypt(m, pkb) for m in messages]
 
