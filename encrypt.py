@@ -4,26 +4,20 @@ import rsa
 import secrets
 import cmath, math
 import sys
+from mpmath import mp
 
 def update_xyz(x, y, z, r=3.99, beta=6):
     """
-    Updates x, y, z according to the quantum logistic map.  Default values of
-    the parameters beta and r are given on page 6 of the paper; the quantum
-    logistic map is given in equations 1-3.
-    Note that x, y, z are complex numbers.
+    Updates x, y, z according to the quantum logistic map.  Default values of the parameters beta and r are given on page 6 of the paper; the quantum logistic map is given in equations 1-3. Note that x, y, z are complex numbers.
+
+    Uses mp.dps = 100 precision.
     """
-
-    #X
-    x_new = r*(x - abs(x)**2) - r*y
-
-    #Y
-    y_new = -y*math.exp(-2*beta) + math.exp(-beta)*r*((2-x-x.conjugate())*y - \
-            x*z.conjugate() - x.conjugate()*z)
-    
-    #Z
-    z_new = -z*math.exp(-2*beta) + math.exp(-beta)*r*(2*(1-x.conjugate())*z - \
-            2*x*y - x)
-    
+    mp.dps = 100 # set precision
+    x_new = r * (x - abs(x)**2) - r * y
+    y_new = -y * mp.exp(-2*beta) + mp.exp(-beta) * r * ((2 - x - mp.conjugate(x)) * y - \
+            x * mp.conjugate(z) - mp.conjugate(x) * z)
+    z_new = -z * mp.exp(-2*beta) + mp.exp(-beta) * r * (2 * (1 - mp.conjugate(x)) * z - \
+            2 * x * y - x)
     return x_new, y_new, z_new
 
 def dct(u, v, img):
@@ -114,20 +108,21 @@ def enc(img, pkb):
 
 def enc_channel(img, pkb):
     """ Takes in one channel of the plain image and the public key, and returns the ciphertexts, r, and the encrypted image. """
-    # Assumes a grayscale (one-channel) image.  I think we're supposed to
-    # encrypt each channel separately.
+
+    # calculate r
     M, N = img.shape
-    r = 0
-    for i in range(M): # rows
-        for j in range(N): # cols
-            r += ((img[i][j] + i + j)**2)**(1/5)
+    r = np.sum((np.concatenate(list(np.arange(j,N+j) for j in range(M))) + img.flatten())**(2/5))
+
+    # calculate m, c
     m, c = gen_ciphertexts(pkb)
     m_int = [int.from_bytes(m_i, sys.byteorder) for m_i in m]
     c_int = [int.from_bytes(c_i, sys.byteorder) for c_i in c]
+
+    # calculate xyz
     x_0, y_0, z_0 = [1/(abs(m_int[i] - c_int[i]) + r) for i in range(3)]
     x, y, z = x_0, y_0, z_0
     for i in range(500):
-        x, y, z = update_xyz(x, y, z, r)
+        x, y, z = np.array(update_xyz(x, y, z, r))
 
     # Encryption round
     X_rk = img # X_0 = plain image
