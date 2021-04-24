@@ -10,7 +10,7 @@ def update_xyz(x, y, z, r=3.99, beta=6):
     """
     Updates x, y, z according to the quantum logistic map.  Default values of the parameters beta and r are given on page 6 of the paper; the quantum logistic map is given in equations 1-3. Note that x, y, z are complex numbers.
 
-    Uses mp.dps = 100 precision.
+    Uses mp.dps to set precision.
     """
     mp.dps = 100 # set precision
     x_new = r * (x - abs(x)**2) - r * y
