@@ -2,8 +2,9 @@ import cv2
 import numpy as np
 import rsa
 import secrets
-import cmath, math
 import sys
+import struct
+#import cmath, math
 #from mpmath import mp
 
 def update_xyz(x, y, z, mod_n, r=3.99, beta=6):
@@ -141,6 +142,35 @@ def mod(a, n):
     r2 = (d1 * n2 + d2 * n1) // n_nsq
     return complex(r1, r2)
 
+#def xor(f1, f2):
+#    """
+#    Calculates the XOR of int and float values. 
+#
+#    Implementation taken from this stack overflow thread: https://stackoverflow.com/questions/14461011/xor-between-floats-in-python
+#    """
+#    print(type(f1), type(f2))
+#    print(f1, f2)
+#    # If f1 and f2 are ints
+#    if isinstance(f1, int) and isinstance(f2, int):
+#        return f1 ^ f2
+#    
+#    # If one or both of f1 and f2 are floats
+#    f1, f2 = (float(f1), float(f2)) # convert both to floats
+#    f1 = int(''.join(hex(ord(e))[2:] for e in struct.pack('d',f1)),16)
+#    f2 = int(''.join(hex(ord(e))[2:] for e in struct.pack('d',f2)),16)
+#    xor = f1 ^ f2
+#    xor = "{:016x}".format(xor)
+#    xor = ''.join(chr(int(xor[i:i+2],16)) for i in range(0,len(xor),2))
+#    return struct.unpack('d',xor)[0]
+
+def xor(x, y):
+    """
+    Calculates the XOR of two numpy lists `x` and `y` that can contain int or float values.
+
+    Implementation taken from this stack exchange thread: https://codegolf.stackexchange.com/questions/192862/floating-point-xor
+    """
+    return (x.view("i")^y.view("i")).view("f")
+
 def enc_channel(img, pkb):
     """ Takes in one channel of the plain image and the public key, and returns the ciphertexts, r, and the encrypted image. """
 
@@ -224,10 +254,12 @@ def enc_channel(img, pkb):
                         G[i][j] += sigma(u,M) * sigma(v,N) * F_dp[i][j] * np.cos(((2*i+1)*np.pi*u)/(2*M)) * np.cos(((2*j+1)*np.pi*v)/(2*N))
 
         # Generate encrypted image for round rk
+        xor_values = xor(xor(G.flatten(), sk), X_rk.flatten()))
         for ind in range(M*N):
-            print(type(G.flatten()[ind]), type(sk[ind]), type(X_rk.flatten()[ind]))
-            print(G.flatten()[ind], sk[ind], X_rk.flatten()[ind])
-            val = G.flatten()[ind] ^ sk[ind] ^ X_rk.flatten()[ind]
+            val = xor_values[ind]
+            #print(type(G.flatten()[ind]), type(sk[ind]), type(X_rk.flatten()[ind]))
+            #print(G.flatten()[ind], sk[ind], X_rk.flatten()[ind])
+            #val = xor(xor(G.flatten()[ind], sk[ind]), X_rk.flatten()[ind])
             i = int(ind // N)
             j = int(ind % N)
             X_rk[i][j] = val
