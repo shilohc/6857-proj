@@ -108,9 +108,9 @@ def enc(img, pkb, verbose=False):
             cipher_channel, r_channel, enc_img_channel = enc_channel(img[:,:,channel], pkb, verbose=verbose)
             cipher.append(cipher_channel)
             r.append(r_channel)
-            enc_img.append(enc_img_channel)
-        enc_img = np.concatenate(enc_img, axis=2)
-        return (cipher, r, enc_img)
+            enc_img.append(enc_img_channel.T) # (rows, cols) => (cols, rows)
+        enc_img = enc_img.T # (channels, cols, rows) => (rows, cols, channels)
+        return (cipher, r, enc_img) 
 
     # Else invalid image
     return (None, None, None)
