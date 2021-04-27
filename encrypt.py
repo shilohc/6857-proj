@@ -4,6 +4,7 @@ import rsa
 import secrets
 import sys
 import struct
+import time
 #import cmath, math
 #from mpmath import mp
 
@@ -281,5 +282,9 @@ def dec(img, ciphertexts, r, pkb, skb):
     pass
 
 if __name__ == "__main__":
+    print("Starting...")
+    start = time.time()
     pk, sk = read_keys("rsa-keys/public.pem", "rsa-keys/private.pem")
     c, r, enc_img = enc(cv2.imread("images/testimage1_32x24.jpg"), pk, verbose=True)
+    end = time.time()
+    print("Time:", end - start)
