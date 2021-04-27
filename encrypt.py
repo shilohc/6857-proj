@@ -7,13 +7,13 @@ import struct
 #import cmath, math
 #from mpmath import mp
 
-def update_xyz(x, y, z, mod_n, r=3.99, beta=6):
+def update_xyz(xyz, mod_n, r=3.99, beta=6):
     """
     Updates x, y, z according to the quantum logistic map.  Default values of the parameters beta and r are given on page 6 of the paper; the quantum logistic map is given in equations 1-3. Note that x, y, z are complex numbers.
 
     Calculates all values mod (N+1)(M+1) (where M and N are the dimensions of the input image).
     """
-    #mp.dps = 100 # set precision
+    x, y, z = xyz
     x_new = mod(r * (x - abs(x)**2) - r * y, mod_n)
     y_new = mod(-y * np.exp(-2*beta) + np.exp(-beta) * r * ((2 - x - np.conjugate(x)) * y - x * np.conjugate(z) - np.conjugate(x) * z), mod_n)
     z_new = mod(-z * np.exp(-2*beta) + np.exp(-beta) * r * (2 * (1 - np.conjugate(x)) * z - 2 * x * y - x), mod_n)
@@ -142,34 +142,21 @@ def mod(a, n):
     r2 = (d1 * n2 + d2 * n1) // n_nsq
     return complex(r1, r2)
 
-#def xor(f1, f2):
-#    """
-#    Calculates the XOR of int and float values. 
-#
-#    Implementation taken from this stack overflow thread: https://stackoverflow.com/questions/14461011/xor-between-floats-in-python
-#    """
-#    print(type(f1), type(f2))
-#    print(f1, f2)
-#    # If f1 and f2 are ints
-#    if isinstance(f1, int) and isinstance(f2, int):
-#        return f1 ^ f2
-#    
-#    # If one or both of f1 and f2 are floats
-#    f1, f2 = (float(f1), float(f2)) # convert both to floats
-#    f1 = int(''.join(hex(ord(e))[2:] for e in struct.pack('d',f1)),16)
-#    f2 = int(''.join(hex(ord(e))[2:] for e in struct.pack('d',f2)),16)
-#    xor = f1 ^ f2
-#    xor = "{:016x}".format(xor)
-#    xor = ''.join(chr(int(xor[i:i+2],16)) for i in range(0,len(xor),2))
-#    return struct.unpack('d',xor)[0]
-
 def xor(x, y):
     """
-    Calculates the XOR of two numpy lists `x` and `y` that can contain int or float values.
+    Calculates the XOR of numpy arrays `x` and `y`. They must contain values of type np.float32, and be the same length.
 
     Implementation taken from this stack exchange thread: https://codegolf.stackexchange.com/questions/192862/floating-point-xor
     """
-    return (x.view("i")^y.view("i")).view("f")
+    xor_vals = (x.view("i")^y.view("i")).view("f")
+
+    # If xor with floats returns NAN
+    # return xor of int values
+    nan_inds = np.math.isnan(xor_vals)
+    for i in nan_inds:
+        xor_vals[i] = int(x[i]) ^ int(y[i])
+
+    return xor_vals
 
 def enc_channel(img, pkb):
     """ Takes in one channel of the plain image and the public key, and returns the ciphertexts, r, and the encrypted image. """
@@ -184,33 +171,41 @@ def enc_channel(img, pkb):
     m_int = [int.from_bytes(m_i, sys.byteorder) for m_i in m]
     c_int = [int.from_bytes(c_i, sys.byteorder) for c_i in c]
 
-    # Calculate xyz
-    x_0, y_0, z_0 = [mod(1/(abs(m_int[i] - c_int[i]) + r), mod_n) for i in range(3)]
-    x, y, z = x_0, y_0, z_0
+    # Calculate xyz_500
+    xyz = [mod(1/(abs(m_int[i] - c_int[i]) + r), mod_n) for i in range(3)]
     for i in range(500):
-        x, y, z = np.array(update_xyz(x, y, z, r))
+        xyz = update_xyz(xyz, mod_n, r)
+
+    # Encryption round variables
+    # X_rk holds the value of the image at start of round rk; X_0 = plain image
+    X_rk = np.array(img, dtype=np.float32) 
+    # xyz_prev holds the value xyz_{500 + rk(MN)} (xyz_500 before rk loop)
+    xyz_prev = xyz 
 
     # Encryption round
-    X_rk = img # X_0 = plain image
     for rk in range(5):
-        xyzs = [[x, y, z]]
+        # xyzs = [xyz_{500+rk(MN)}, xyz_{500+rk(MN)+1}, ..., xyz_{500+rk(MN)+MN}
+        xyzs = [list(xyz_prev)] 
         for i in range(M*N):
-            xyzs.append(update_xyz(*xyzs[-1], r))
-        xk_primes = []
+            xyzs.append(update_xyz(xyzs[-1], mod_n, r))
+        xyz_prev = xyzs[-1] # update xyz_prev to last xyzs array
+
+        # Calculate x_k', y_k', z_k', w_k', and s_k
+        xk_primes = [] # xk_primes = [x_1', x_2', ..., x_M']
         for k in range(M):
             xk_primes.append((np.floor(xyzs[k+1][0] * 1e14)) % (N+1))
-        yk_primes = []
+        yk_primes = [] # yk_primes = [y_1', y_2', ..., y_N']
         for k in range(N):
             yk_primes.append((np.floor(xyzs[k+1][1] * 1e14)) % (M+1))
-        zk_primes = []
+        zk_primes = [] # zk_primes = [z_1', z_2', ..., z_M']
         for k in range(M):
             zk_primes.append((np.floor((xyzs[k+1][2] * 0.6 + xyzs[k+1][0] * 0.4) * 1e14)) % (N+1))
-        wk_primes = []
+        wk_primes = [] # wk_primes = [w_1', w_2', ..., w_M']
         for k in range(N):
             wk_primes.append((np.floor((xyzs[k+1][2] * 0.6 + xyzs[k+1][1] * 0.4) * 1e14)) % (M+1))
-        sk = []
+        sk = [] # sk = [s_1, s_2, ..., s_{MN}]
         for k in range(M*N):
-            sk.append((np.fix(sum(xyzs[k+1])) * 1e14) % 256)
+            sk.append(np.fix(sum(xyzs[k+1]) * 1e14) % 256)
 
         # Row permutations
         Xrk_prime = np.zeros((M,N))
@@ -246,7 +241,7 @@ def enc_channel(img, pkb):
                 F_dp[i][j] = F_prime[int((i+wk_primes[i]-1) % M)][j]
 
         # Inverse discrete cosine transform coefficient matrix
-        G = np.zeros((M,N))
+        G = np.zeros((M,N), dtype=np.float32)
         for i in range(M):
             for j in range(N):
                 for u in range(M):
@@ -254,12 +249,9 @@ def enc_channel(img, pkb):
                         G[i][j] += sigma(u,M) * sigma(v,N) * F_dp[i][j] * np.cos(((2*i+1)*np.pi*u)/(2*M)) * np.cos(((2*j+1)*np.pi*v)/(2*N))
 
         # Generate encrypted image for round rk
-        xor_values = xor(xor(G.flatten(), sk), X_rk.flatten()))
+        xor_values = xor(xor(G.flatten(), np.array(sk, dtype=np.float32)), X_rk.flatten())
         for ind in range(M*N):
             val = xor_values[ind]
-            #print(type(G.flatten()[ind]), type(sk[ind]), type(X_rk.flatten()[ind]))
-            #print(G.flatten()[ind], sk[ind], X_rk.flatten()[ind])
-            #val = xor(xor(G.flatten()[ind], sk[ind]), X_rk.flatten()[ind])
             i = int(ind // N)
             j = int(ind % N)
             X_rk[i][j] = val
@@ -273,5 +265,5 @@ def dec(img, ciphertexts, r, pkb, skb):
 
 if __name__ == "__main__":
     pk, sk = read_keys("rsa-keys/public.pem", "rsa-keys/private.pem") #test with valid RSA key pair
-    #update_xyz(1+3j, 2-4j, 4+2j, r=3.99, beta=6) #random complex number test
+    #update_xyz((1+3j, 2-4j, 4+2j), 512, r=3.99, beta=6) #random complex number test
     c, r, enc_img = enc(cv2.imread("images/extremely_small_test_image_1.jpg"), pk)
