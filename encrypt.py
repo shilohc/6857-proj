@@ -264,6 +264,5 @@ def dec(img, ciphertexts, r, pkb, skb):
     pass
 
 if __name__ == "__main__":
-    pk, sk = read_keys("rsa-keys/public.pem", "rsa-keys/private.pem") #test with valid RSA key pair
-    #update_xyz((1+3j, 2-4j, 4+2j), 512, r=3.99, beta=6) #random complex number test
-    c, r, enc_img = enc(cv2.imread("images/extremely_small_test_image_1.jpg"), pk)
+    pk, sk = read_keys("rsa-keys/public.pem", "rsa-keys/private.pem")
+    c, r, enc_img = enc(cv2.imread("images/testimage1_32x24.jpg"), pk)
