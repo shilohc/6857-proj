@@ -152,7 +152,7 @@ def xor(x, y):
 
     # If xor with floats returns NAN
     # return xor of int values
-    nan_inds = np.math.isnan(xor_vals)
+    nan_inds = np.argwhere(np.isnan(xor_vals))
     for i in nan_inds:
         xor_vals[i] = int(x[i]) ^ int(y[i])
 
