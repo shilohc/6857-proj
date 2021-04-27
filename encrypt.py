@@ -109,7 +109,7 @@ def enc(img, pkb, verbose=False):
             cipher.append(cipher_channel)
             r.append(r_channel)
             enc_img.append(enc_img_channel.T) # (rows, cols) => (cols, rows)
-        enc_img = enc_img.T # (channels, cols, rows) => (rows, cols, channels)
+        enc_img = np.array(enc_img).T # (channels, cols, rows) => (rows, cols, channels)
         return (cipher, r, enc_img) 
 
     # Else invalid image
@@ -285,6 +285,8 @@ if __name__ == "__main__":
     print("Starting...")
     start = time.time()
     pk, sk = read_keys("rsa-keys/public.pem", "rsa-keys/private.pem")
+    print("Read keys...")
     c, r, enc_img = enc(cv2.imread("images/testimage1_32x24.jpg"), pk, verbose=True)
+    print(enc_img)
     end = time.time()
     print("Time:", end - start)
