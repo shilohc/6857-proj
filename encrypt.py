@@ -148,19 +148,9 @@ def mod(a, n):
 
 def xor(x, y):
     """
-    Calculates the XOR of numpy arrays `x` and `y`. They must contain values of type np.float32, and be the same length.
-
-    Implementation taken from this stack exchange thread: https://codegolf.stackexchange.com/questions/192862/floating-point-xor
+    Calculates the absolute value of the XOR of two arrays `x` and `y` by converting both to ints and returning their magnitude.
     """
-    xor_vals = (x.view("i")^y.view("i")).view("f")
-
-    # If xor with floats returns NAN
-    # return xor of int values
-    nan_inds = np.argwhere(np.isnan(xor_vals))
-    for i in nan_inds:
-        xor_vals[i] = int(x[i]) ^ int(y[i])
-
-    return xor_vals
+    return np.abs(np.array(x, dtype=int) ^ np.array(y, dtype=int))
 
 def enc_channel(img, pkb, verbose=False):
     """ Takes in one channel of the plain image and the public key, and returns the ciphertexts, r, and the encrypted image. """
