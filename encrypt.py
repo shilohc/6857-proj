@@ -90,8 +90,11 @@ def sigma(x, L):
         return np.sqrt(1/L)
     return np.sqrt(2/L)
 
-def enc(img, pkb):
+def enc(img, pkb, verbose=False):
     """ Calls enc_channel on each channel in the image. """
+    if verbose:
+        print("Starting encryption...")
+
     image_dims = img.shape
     # If image has one channel (grayscale)
     if len(image_dims)==2:
@@ -101,7 +104,7 @@ def enc(img, pkb):
     if len(image_dims)==3 and (image_dims[2]==3 or image_dims[2]==4): 
         cipher, r, enc_img = ([], [], [])
         for channel in range(image_dims[2]):
-            cipher_channel, r_channel, enc_img_channel = enc_channel(img[:,:,channel], pkb)
+            cipher_channel, r_channel, enc_img_channel = enc_channel(img[:,:,channel], pkb, verbose=verbose)
             cipher.append(cipher_channel)
             r.append(r_channel)
             enc_img.append(enc_img_channel)
@@ -158,18 +161,24 @@ def xor(x, y):
 
     return xor_vals
 
-def enc_channel(img, pkb):
+def enc_channel(img, pkb, verbose=False):
     """ Takes in one channel of the plain image and the public key, and returns the ciphertexts, r, and the encrypted image. """
 
+    if verbose:
+        print("Encrypting new channel...")
     # Calculate r
     M, N = img.shape
     r = np.sum((np.concatenate(list(np.arange(j,N+j) for j in range(M))) + img.flatten())**(2/5))
+    if verbose:
+        print("Calculated r...")
     mod_n = (M+1)*(N+1) if (M+1)*(N+1)>256 else (M+1)*(N+1)*256
 
     # Calculate m, c
     m, c = gen_ciphertexts(pkb)
     m_int = [int.from_bytes(m_i, sys.byteorder) for m_i in m]
     c_int = [int.from_bytes(c_i, sys.byteorder) for c_i in c]
+    if verbose:
+        print("Calculated m, c...")
 
     # Calculate xyz_500
     xyz = [mod(1/(abs(m_int[i] - c_int[i]) + r), mod_n) for i in range(3)]
@@ -184,6 +193,8 @@ def enc_channel(img, pkb):
 
     # Encryption round
     for rk in range(5):
+        if verbose:
+            print("In encryption round {}...".format(rk))
         # xyzs = [xyz_{500+rk(MN)}, xyz_{500+rk(MN)+1}, ..., xyz_{500+rk(MN)+MN}
         xyzs = [list(xyz_prev)] 
         for i in range(M*N):
@@ -207,6 +218,8 @@ def enc_channel(img, pkb):
         for k in range(M*N):
             sk.append(np.fix(sum(xyzs[k+1]) * 1e14) % 256)
 
+        if verbose:
+            print("Starting row and column permutations...")
         # Row permutations
         Xrk_prime = np.zeros((M,N))
         for i in range(M): # rows
@@ -240,6 +253,8 @@ def enc_channel(img, pkb):
             for j in range(N):
                 F_dp[i][j] = F_prime[int((i+wk_primes[i]-1) % M)][j]
 
+        if verbose:
+            print("Starting inverse discrete cosine transform coefficient matrix...")
         # Inverse discrete cosine transform coefficient matrix
         G = np.zeros((M,N), dtype=np.float32)
         for i in range(M):
@@ -248,6 +263,8 @@ def enc_channel(img, pkb):
                     for v in range(N):
                         G[i][j] += sigma(u,M) * sigma(v,N) * F_dp[i][j] * np.cos(((2*i+1)*np.pi*u)/(2*M)) * np.cos(((2*j+1)*np.pi*v)/(2*N))
 
+        if verbose:
+            print("Generating encrypted image for round {}...".format(rk))
         # Generate encrypted image for round rk
         xor_values = xor(xor(G.flatten(), np.array(sk, dtype=np.float32)), X_rk.flatten())
         for ind in range(M*N):
@@ -265,4 +282,4 @@ def dec(img, ciphertexts, r, pkb, skb):
 
 if __name__ == "__main__":
     pk, sk = read_keys("rsa-keys/public.pem", "rsa-keys/private.pem")
-    c, r, enc_img = enc(cv2.imread("images/testimage1_32x24.jpg"), pk)
+    c, r, enc_img = enc(cv2.imread("images/testimage1_32x24.jpg"), pk, verbose=True)
