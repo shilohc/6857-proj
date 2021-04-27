@@ -285,7 +285,6 @@ if __name__ == "__main__":
     print("Starting...")
     start = time.time()
     pk, sk = read_keys("rsa-keys/public.pem", "rsa-keys/private.pem")
-    print("Read keys...")
     c, r, enc_img = enc(cv2.imread("images/testimage1_32x24.jpg"), pk, verbose=True)
     print(enc_img)
     end = time.time()
