@@ -91,30 +91,6 @@ def sigma(x, L):
         return np.sqrt(1/L)
     return np.sqrt(2/L)
 
-def enc(img, pkb, verbose=False):
-    """ Calls enc_channel on each channel in the image. """
-    if verbose:
-        print("Starting encryption...")
-
-    image_dims = img.shape
-    # If image has one channel (grayscale)
-    if len(image_dims)==2:
-        return enc_channel(img, pkb)
-
-    # Else if image has 3 or 4 channels (RGB or RGBA) 
-    if len(image_dims)==3 and (image_dims[2]==3 or image_dims[2]==4): 
-        cipher, r, enc_img = ([], [], [])
-        for channel in range(image_dims[2]):
-            cipher_channel, r_channel, enc_img_channel = enc_channel(img[:,:,channel], pkb, verbose=verbose)
-            cipher.append(cipher_channel)
-            r.append(r_channel)
-            enc_img.append(enc_img_channel.T) # (rows, cols) => (cols, rows)
-        enc_img = np.array(enc_img).T # (channels, cols, rows) => (rows, cols, channels)
-        return (cipher, r, enc_img) 
-
-    # Else invalid image
-    return (None, None, None)
-
 def mod(a, n):
     """
     Returns `a mod n`, where `a` can be a complex or real number. 
@@ -151,6 +127,30 @@ def xor(x, y):
     Calculates the absolute value of the XOR of two arrays `x` and `y` by converting both to ints and returning their magnitude.
     """
     return np.abs(np.array(x, dtype=int) ^ np.array(y, dtype=int))
+
+def enc(img, pkb, verbose=False):
+    """ Calls enc_channel on each channel in the image. """
+    if verbose:
+        print("Starting encryption...")
+
+    image_dims = img.shape
+    # If image has one channel (grayscale)
+    if len(image_dims)==2:
+        return enc_channel(img, pkb)
+
+    # Else if image has 3 or 4 channels (RGB or RGBA) 
+    if len(image_dims)==3 and (image_dims[2]==3 or image_dims[2]==4): 
+        cipher, r, enc_img = ([], [], [])
+        for channel in range(image_dims[2]):
+            cipher_channel, r_channel, enc_img_channel = enc_channel(img[:,:,channel], pkb, verbose=verbose)
+            cipher.append(cipher_channel)
+            r.append(r_channel)
+            enc_img.append(enc_img_channel.T) # (rows, cols) => (cols, rows)
+        enc_img = np.array(enc_img).T # (channels, cols, rows) => (rows, cols, channels)
+        return (cipher, r, enc_img) 
+
+    # Else invalid image
+    return (None, None, None)
 
 def enc_channel(img, pkb, verbose=False):
     """ Takes in one channel of the plain image and the public key, and returns the ciphertexts, r, and the encrypted image. """
@@ -407,18 +407,15 @@ def dec_channel(img, ciphertexts, r, pkb, skb, verbose=False):
     # Output decrypted image
     return C_rk
 
-def save_image(img_array, name):
-    cv2.imwrite(name, img_array)
-   
-
-
-
 if __name__ == "__main__":
     print("Starting...")
     start = time.time()
     pk, sk = read_keys("rsa-keys/public.pem", "rsa-keys/private.pem")
     c, r, enc_img = enc(cv2.imread("images/testimage1_32x24.jpg"), pk, verbose=False)
+    print("Time to encrypt:", time.time() - start)
+    cv2.imwrite("encrypted/testimage1_32x24.jpg", enc_img)
+
+    start = time.time()
     dec_img = dec(enc_img, c, r, pk, sk, verbose=True)
-    save_image(dec_img, "results/testimage1_32x24.jpg")
-    end = time.time()
-    print("Time:", end - start)
+    print("Time to decrypt:", time.time() - start)
+    cv2.imwrite("results/testimage1_32x24.jpg", dec_img)
