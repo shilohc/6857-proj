@@ -407,6 +407,11 @@ def dec_channel(img, ciphertexts, r, pkb, skb, verbose=False):
     # Output decrypted image
     return C_rk
 
+def save_image(img_array, name):
+    cv2.imwrite(name, img_array)
+   
+
+
 
 if __name__ == "__main__":
     print("Starting...")
@@ -414,6 +419,6 @@ if __name__ == "__main__":
     pk, sk = read_keys("rsa-keys/public.pem", "rsa-keys/private.pem")
     c, r, enc_img = enc(cv2.imread("images/testimage1_32x24.jpg"), pk, verbose=False)
     dec_img = dec(enc_img, c, r, pk, sk, verbose=True)
-    print(dec_img)
+    save_image(dec_img, "results/testimage1_32x24.jpg")
     end = time.time()
     print("Time:", end - start)
