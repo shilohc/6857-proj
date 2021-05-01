@@ -20,45 +20,92 @@ def update_xyz(xyz, mod_n, r=3.99, beta=6):
     z_new = mod(-z * np.exp(-2*beta) + np.exp(-beta) * r * (2 * (1 - np.conjugate(x)) * z - 2 * x * y - x), mod_n)
     return x_new, y_new, z_new
 
-def dct(u, v, img):
+def dct(img):
     """
-    Computes the discrete cosine transform at (u, v).  Assumes a grayscale
-    (one-channel) image.
-    """
-    M, N = img.shape
-    sigma_u = np.sqrt(2/M)
-    sigma_v = np.sqrt(2/N)
-    if u == 0:
-        sigma_u = np.sqrt(1/M)
-    if v == 0:
-        sigma_v = np.sqrt(1/N)
-
-    # TODO(shiloh): should be elementwise
-    cos_array = np.array([[(np.cos(u * (2*i + 1) * np.pi / (2*M)) \
-            * np.cos(v * (2*j + 1) * np.pi / (2*N))) \
-            for j in range(N)] for i in range(M)])
-    dct_mat = sigma_u * sigma_v * img * cos_array
-    dct = np.sum(dct_mat)
-    return sigma_u * sigma_v * dct
-
-def inverse_dct(u, v, dct):
-    """
-    Computes the inverse discrete cosine transform at (u, v).  Assumes a
-    grayscale (one-channel) image.
+    Computes the discrete cosine transform of the array img.  Assumes that img
+    is grayscale (single-channel).
     """
     M, N = img.shape
-    sigma_u = np.sqrt(2/M)
-    sigma_v = np.sqrt(2/N)
-    if u == 0:
-        sigma_u = np.sqrt(1/M)
-    if v == 0:
-        sigma_v = np.sqrt(1/N)
+    out = np.zeros((M,N))
+    i_array = np.array([[i for j in range(N)] for i in range(M)])
+    j_array = np.array([[j for j in range(N)] for i in range(M)])
+    sigma_array = np.array([[sigma(i, M) * sigma(j, N) for j in range(N)] \
+            for i in range(M)])
+    for u in range(M):
+        for v in range(N):
+            cos_array = np.cos(u * (2*i_array + 1) * np.pi)/(2*M) * \
+                        np.cos(v * (2*j_array + 1) * np.pi)/(2*N)
+            out[u][v] = np.sum(img * cos_array)
+    return out * sigma_array
 
-    # TODO(shiloh): should be elementwise
-    cos_array = np.array([[(np.cos(u * (2*i + 1) * np.pi / (2*M)) \
-            * np.cos(v * (2*j + 1) * np.pi / (2*N))) \
-            for j in range(N)] for i in range(M)])
-    return sigma_u * sigma_v * dct * cos_array
+def inverse_dct(img):
+    """
+    Computes the inverse discrete cosine transform of the array img.  Assumes
+    that img is grayscale (single-channel).
+    """
+    M, N = img.shape
+    out = np.zeros((M,N), dtype=np.float32)
+    u_array = np.array([[u for v in range(N)] for u in range(M)])
+    v_array = np.array([[v for v in range(N)] for u in range(M)])
+    sigma_array = np.array([[sigma(u, M) * sigma(v, N) for v in range(N)] \
+            for u in range(M)])
+    for i in range(M):
+        for j in range(N):
+            cos_array = np.cos(u_array * (2*i + 1) * np.pi)/(2*M) * \
+                        np.cos(v_array * (2*j + 1) * np.pi)/(2*N)
+            out[i][j] = np.sum(sigma_array * cos_array)
+    return img * out
+
+def permute_rows(img, primes):
+    M, N = img.shape
+    out = np.zeros((M, N))
+    for i in range(M):
+        for j in range(N):
+            out[i][j] = img[i][int((j + primes[i] - 1) % N)]
+    return out
+
+def permute_cols(img, primes):
+    M, N = img.shape
+    out = np.zeros((M, N))
+    for i in range(M):
+        for j in range(N):
+            out[i][j] = img[int((i + primes[j] - 1) % M)][j]
+    return out
+
+def encryption_round(X_rk, xyz_prev, mod_n, r, verbose=False):
+    M, N = X_rk.shape
+
+    # xyzs = [xyz_{500+rk(MN)}, xyz_{500+rk(MN)+1}, ..., xyz_{500+rk(MN)+MN}
+    xyzs = [list(xyz_prev)] 
+    for i in range(M*N):
+        xyzs.append(update_xyz(xyzs[-1], mod_n, r))
+
+    # Calculate x_k', y_k', z_k', w_k', and s_k
+    xk_primes = [(np.floor(xyzs[k+1][0] * 1e14)) % (N+1) for k in range(M)]
+    yk_primes = [(np.floor(xyzs[k+1][1] * 1e14)) % (M+1) for k in range(N)]
+    zk_primes = [(np.floor((xyzs[k+1][2] * 0.6 + xyzs[k+1][0] * 0.4) * 1e14)) \
+            % (N+1) for k in range(M)]
+    wk_primes = [(np.floor((xyzs[k+1][2] * 0.6 + xyzs[k+1][1] * 0.4) * 1e14)) \
+            % (M+1) for k in range(N)]
+    sk = np.array([np.fix(sum(xyzs[k+1]) * 1e14) % 256 for k in range(M*N)], \
+            dtype=np.float32)
+
+    if verbose:
+        print("Starting row and column permutations...")
+    Xrk_permuted = permute_cols(permute_rows(X_rk, xk_primes), yk_primes)
+    if verbose:
+        print("Starting DCT coefficient matrix...")
+    F = dct(Xrk_permuted)
+    if verbose:
+        print("Starting row and column permutations...")
+    F_permuted = permute_cols(permute_rows(F, zk_primes), wk_primes)
+    if verbose:
+        print("Starting inverse DCT coefficient matrix...")
+    G = inverse_dct(F_permuted)
+    if verbose:
+        print("Generating encrypted image...")
+    xor_values = xor(xor(G.flatten(), sk), X_rk.flatten())
+    return np.reshape(xor_values, (M, N)), xyzs[-1]
 
 def gen_ciphertexts(pkb):
     """
@@ -86,7 +133,9 @@ def read_keys(public_filename, secret_filename):
     return public_key, secret_key
 
 def sigma(x, L):
-    """ Helper function called by enc_channel."""
+    """
+    Helper function called by dct and inverse_dct.
+    """
     if x==0:
         return np.sqrt(1/L)
     return np.sqrt(2/L)
@@ -95,7 +144,8 @@ def mod(a, n):
     """
     Returns `a mod n`, where `a` can be a complex or real number. 
 
-    Implementation for modular arithmetic over complex numbers taken from this stack exchange thread: https://codegolf.stackexchange.com/questions/196122/gaussian-integer-division-reminder
+    Implementation for modular arithmetic over complex numbers taken from this
+    stack exchange thread: https://codegolf.stackexchange.com/questions/196122/gaussian-integer-division-reminder
     """
     # If a is not complex
     if not isinstance(a, complex):
@@ -176,93 +226,15 @@ def enc_channel(img, pkb, verbose=False):
     for i in range(500):
         xyz = update_xyz(xyz, mod_n, r)
 
-    # Encryption round variables
     # X_rk holds the value of the image at start of round rk; X_0 = plain image
     X_rk = np.array(img, dtype=np.float32) 
     # xyz_prev holds the value xyz_{500 + rk(MN)} (xyz_500 before rk loop)
     xyz_prev = xyz 
 
-    # Encryption round
     for rk in range(5):
         if verbose:
             print("In encryption round {}...".format(rk))
-        # xyzs = [xyz_{500+rk(MN)}, xyz_{500+rk(MN)+1}, ..., xyz_{500+rk(MN)+MN}
-        xyzs = [list(xyz_prev)] 
-        for i in range(M*N):
-            xyzs.append(update_xyz(xyzs[-1], mod_n, r))
-        xyz_prev = xyzs[-1] # update xyz_prev to last xyzs array
-
-        # Calculate x_k', y_k', z_k', w_k', and s_k
-        xk_primes = [] # xk_primes = [x_1', x_2', ..., x_M']
-        for k in range(M):
-            xk_primes.append((np.floor(xyzs[k+1][0] * 1e14)) % (N+1))
-        yk_primes = [] # yk_primes = [y_1', y_2', ..., y_N']
-        for k in range(N):
-            yk_primes.append((np.floor(xyzs[k+1][1] * 1e14)) % (M+1))
-        zk_primes = [] # zk_primes = [z_1', z_2', ..., z_M']
-        for k in range(M):
-            zk_primes.append((np.floor((xyzs[k+1][2] * 0.6 + xyzs[k+1][0] * 0.4) * 1e14)) % (N+1))
-        wk_primes = [] # wk_primes = [w_1', w_2', ..., w_M']
-        for k in range(N):
-            wk_primes.append((np.floor((xyzs[k+1][2] * 0.6 + xyzs[k+1][1] * 0.4) * 1e14)) % (M+1))
-        sk = [] # sk = [s_1, s_2, ..., s_{MN}]
-        for k in range(M*N):
-            sk.append(np.fix(sum(xyzs[k+1]) * 1e14) % 256)
-
-        if verbose:
-            print("Starting row and column permutations...")
-        # Row permutations
-        Xrk_prime = np.zeros((M,N))
-        for i in range(M): # rows
-            for j in range(N): # cols
-                Xrk_prime[i][j] = X_rk[i][int((j+xk_primes[i]-1) % N)]
-
-        # Column permutations
-        Xrk_dp = np.zeros((M,N))
-        for i in range(M):
-            for j in range(N):
-                Xrk_dp[i][j] = Xrk_prime[int((i+yk_primes[i]-1) % M)][j]
-
-        # Discrete cosine transform coefficient matrix
-        F = np.zeros((M,N))
-        for u in range(M):
-            for v in range(N):
-                for i in range(M):
-                    for j in range(N):
-                        F[u][v] += Xrk_dp[i][j] * np.cos(((2*i+1)*np.pi*u)/(2*M)) * np.cos(((2*j+1)*np.pi*v)/(2*N))
-                F[u][v] *= sigma(u,M) * sigma(v,N)
-
-        # Row permutations
-        F_prime = np.zeros((M,N))
-        for i in range(M):
-            for j in range(N):
-                F_prime[i][j] = F[i][int((j+zk_primes[i]-1) % N)]
-
-        # Column permutations
-        F_dp = np.zeros((M,N))
-        for i in range(M):
-            for j in range(N):
-                F_dp[i][j] = F_prime[int((i+wk_primes[i]-1) % M)][j]
-
-        if verbose:
-            print("Starting inverse discrete cosine transform coefficient matrix...")
-        # Inverse discrete cosine transform coefficient matrix
-        G = np.zeros((M,N), dtype=np.float32)
-        for i in range(M):
-            for j in range(N):
-                for u in range(M):
-                    for v in range(N):
-                        G[i][j] += sigma(u,M) * sigma(v,N) * F_dp[i][j] * np.cos(((2*i+1)*np.pi*u)/(2*M)) * np.cos(((2*j+1)*np.pi*v)/(2*N))
-
-        if verbose:
-            print("Generating encrypted image for round {}...".format(rk))
-        # Generate encrypted image for round rk
-        xor_values = xor(xor(G.flatten(), np.array(sk, dtype=np.float32)), X_rk.flatten())
-        for ind in range(M*N):
-            val = xor_values[ind]
-            i = int(ind // N)
-            j = int(ind % N)
-            X_rk[i][j] = val
+        X_rk, xyz_prev = encryption_round(X_rk, xyz_prev, mod_n, r, verbose)
 
     # Output ciphertexts, r, and encrypted image
     return (c, r, X_rk)
@@ -300,8 +272,6 @@ def dec_channel(img, ciphertexts, r, pkb, skb, verbose=False):
 
     # Calculate m, c
     c = ciphertexts
-    #print(c, len(c), type(c))
-    #print(c[0], type(c[0]))
     m = [rsa.decrypt(i, skb) for i in c]
     m_int = [int.from_bytes(m_i, sys.byteorder) for m_i in m]
     c_int = [int.from_bytes(c_i, sys.byteorder) for c_i in c]
@@ -313,109 +283,31 @@ def dec_channel(img, ciphertexts, r, pkb, skb, verbose=False):
     for i in range(500):
         xyz = update_xyz(xyz, mod_n, r)
 
-    # Encryption round variables
-    # X_rk holds the value of the image at start of round rk; X_0 = plain image
-    X_rk = np.array(img, dtype=np.float32) 
-
-    # C_rk holds the value of the encrypted image at start of round rk; C_0 = original encrypted image
+    # C_rk is the encrypted image at start of round rk
+    # C_0 = original encrypted image
     C_rk = np.array(img, dtype=np.float32) 
     # xyz_prev holds the value xyz_{500 + rk(MN)} (xyz_500 before rk loop)
     xyz_prev = xyz 
 
-    # Encryption round
     for rk in range(5):
         if verbose:
-            print("In encryption round {}...".format(rk))
-        # xyzs = [xyz_{500+rk(MN)}, xyz_{500+rk(MN)+1}, ..., xyz_{500+rk(MN)+MN}
-        xyzs = [list(xyz_prev)] 
-        for i in range(M*N):
-            xyzs.append(update_xyz(xyzs[-1], mod_n, r))
-        xyz_prev = xyzs[-1] # update xyz_prev to last xyzs array
-
-        # Calculate x_k', y_k', z_k', w_k', and s_k
-        xk_primes = [] # xk_primes = [x_1', x_2', ..., x_M']
-        for k in range(M):
-            xk_primes.append((np.floor(xyzs[k+1][0] * 1e14)) % (N+1))
-        yk_primes = [] # yk_primes = [y_1', y_2', ..., y_N']
-        for k in range(N):
-            yk_primes.append((np.floor(xyzs[k+1][1] * 1e14)) % (M+1))
-        zk_primes = [] # zk_primes = [z_1', z_2', ..., z_M']
-        for k in range(M):
-            zk_primes.append((np.floor((xyzs[k+1][2] * 0.6 + xyzs[k+1][0] * 0.4) * 1e14)) % (N+1))
-        wk_primes = [] # wk_primes = [w_1', w_2', ..., w_M']
-        for k in range(N):
-            wk_primes.append((np.floor((xyzs[k+1][2] * 0.6 + xyzs[k+1][1] * 0.4) * 1e14)) % (M+1))
-        sk = [] # sk = [s_1, s_2, ..., s_{MN}]
-        for k in range(M*N):
-            sk.append(np.fix(sum(xyzs[k+1]) * 1e14) % 256)
-
-        if verbose:
-            print("Starting row and column permutations...")
-        # Row permutations
-        Xrk_prime = np.zeros((M,N))
-        for i in range(M): # rows
-            for j in range(N): # cols
-                Xrk_prime[i][j] = X_rk[i][int((j+xk_primes[i]-1) % N)]
-
-        # Column permutations
-        Xrk_dp = np.zeros((M,N))
-        for i in range(M):
-            for j in range(N):
-                Xrk_dp[i][j] = Xrk_prime[int((i+yk_primes[i]-1) % M)][j]
-
-        # Discrete cosine transform coefficient matrix
-        F = np.zeros((M,N))
-        for u in range(M):
-            for v in range(N):
-                for i in range(M):
-                    for j in range(N):
-                        F[u][v] += Xrk_dp[i][j] * np.cos(((2*i+1)*np.pi*u)/(2*M)) * np.cos(((2*j+1)*np.pi*v)/(2*N))
-                F[u][v] *= sigma(u,M) * sigma(v,N)
-
-        # Row permutations
-        F_prime = np.zeros((M,N))
-        for i in range(M):
-            for j in range(N):
-                F_prime[i][j] = F[i][int((j+zk_primes[i]-1) % N)]
-
-        # Column permutations
-        F_dp = np.zeros((M,N))
-        for i in range(M):
-            for j in range(N):
-                F_dp[i][j] = F_prime[int((i+wk_primes[i]-1) % M)][j]
-
-        if verbose:
-            print("Starting inverse discrete cosine transform coefficient matrix...")
-        # Inverse discrete cosine transform coefficient matrix
-        G = np.zeros((M,N), dtype=np.float32)
-        for i in range(M):
-            for j in range(N):
-                for u in range(M):
-                    for v in range(N):
-                        G[i][j] += sigma(u,M) * sigma(v,N) * F_dp[i][j] * np.cos(((2*i+1)*np.pi*u)/(2*M)) * np.cos(((2*j+1)*np.pi*v)/(2*N))
-
-        if verbose:
-            print("Generating encrypted image for round {}...".format(rk))
-        # Generate encrypted image for round rk
-        xor_values = xor(xor(G.flatten(), np.array(sk, dtype=np.float32)), C_rk.flatten())
-        for ind in range(M*N):
-            val = xor_values[ind]
-            i = int(ind // N)
-            j = int(ind % N)
-            C_rk[i][j] = val
+            print("In decryption round {}...".format(rk))
+        C_rk, xyz_prev = encryption_round(C_rk, xyz_prev, mod_n, r, verbose)
 
     # Output decrypted image
     return C_rk
 
 if __name__ == "__main__":
+    img_filename = "testimage1_128x96.jpg"
+    #img_filename = "testimage1_32x24.jpg"
     print("Starting...")
     start = time.time()
     pk, sk = read_keys("rsa-keys/public.pem", "rsa-keys/private.pem")
-    c, r, enc_img = enc(cv2.imread("images/testimage1_32x24.jpg"), pk, verbose=False)
+    c, r, enc_img = enc(cv2.imread("images/" + img_filename), pk, verbose=True)
     print("Time to encrypt:", time.time() - start)
-    cv2.imwrite("encrypted/testimage1_32x24.jpg", enc_img)
+    cv2.imwrite("encrypted/" + img_filename, enc_img)
 
     start = time.time()
-    dec_img = dec(enc_img, c, r, pk, sk, verbose=True)
+    dec_img = dec(enc_img, c, r, pk, sk, verbose=False)
     print("Time to decrypt:", time.time() - start)
-    cv2.imwrite("results/testimage1_32x24.jpg", dec_img)
+    cv2.imwrite("results/" + img_filename, dec_img)
