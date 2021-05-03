@@ -147,6 +147,7 @@ def mod(a, n):
     Implementation for modular arithmetic over complex numbers taken from this
     stack exchange thread: https://codegolf.stackexchange.com/questions/196122/gaussian-integer-division-reminder
     """
+    # TODO: check this again too
     # If a is not complex
     if not isinstance(a, complex):
         return a % n
@@ -176,6 +177,10 @@ def xor(x, y):
     """
     Calculates the absolute value of the XOR of two arrays `x` and `y` by converting both to ints and returning their magnitude.
     """
+    # TODO: look at this again, may be causing the encryption bug
+    # why does smaller image look encrypted?  not just smaller, the
+    # color distribution looks better
+    # try to make a 64x48 test image, various other sizes of test image
     return np.abs(np.array(x, dtype=int) ^ np.array(y, dtype=int))
 
 def enc(img, pkb, verbose=False):
@@ -298,7 +303,9 @@ def dec_channel(img, ciphertexts, r, pkb, skb, verbose=False):
     return C_rk
 
 if __name__ == "__main__":
-    img_filename = "testimage1_128x96.jpg"
+    #img_filename = "testimage1_128x96.jpg"
+    #img_filename = "testimage1_64x48.jpg"
+    img_filename = "testimage1_96x72.jpg"
     #img_filename = "testimage1_32x24.jpg"
     print("Starting...")
     start = time.time()
