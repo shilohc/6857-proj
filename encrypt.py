@@ -180,7 +180,7 @@ def xor(x, y):
     # TODO: look at this again, may be causing the encryption bug
     # why does smaller image look encrypted?  not just smaller, the
     # color distribution looks better
-    # try to make a 64x48 test image, various other sizes of test image
+    # stick with 64x48 test images and try the compression
     return np.abs(np.array(x, dtype=int) ^ np.array(y, dtype=int))
 
 def enc(img, pkb, verbose=False):
