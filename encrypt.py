@@ -147,39 +147,12 @@ def sigma(x, L):
 def mod(a, n):
     """
     Returns `a mod n`, where `a` can be a complex or real number. 
-
-    Implementation for modular arithmetic over complex numbers taken from this
-    stack exchange thread: https://codegolf.stackexchange.com/questions/196122/gaussian-integer-division-reminder
     """
-    # TODO: check this again too
     # If a is not complex
     if not isinstance(a, complex):
         return a % n
 
     return complex(a.real % n, a.imag % n)
-
-"""
-    # If a is complex
-    # Compute p = a * conj(b)
-    a1, a2 = (a.real, a.imag)
-    n1, n2 = (n.real, n.imag)
-    p1 = a1 * n1 + a2 * n2
-    p2 = - a1 * n2 + a2 * n1
-
-    # Compute the norm-squared of n
-    n_nsq = n1 ** 2 + n2 ** 2
-    n_nsq_half = n_nsq // 2
-
-    # Do a symmetric mod of d1 and d2 by n_nsq
-    # That is, into the interval [-n_nsq_half, +n_nsq_half)
-    d1 = (p1 + n_nsq_half) % n_nsq - n_nsq_half
-    d2 = (p2 + n_nsq_half) % n_nsq - n_nsq_half
-
-    # Compute r = d / n
-    r1 = (d1 * n1 - d2 * n2) // n_nsq
-    r2 = (d1 * n2 + d2 * n1) // n_nsq
-    return complex(r1, r2)
-"""
 
 def enc(img, pkb, verbose=False):
     """ Calls enc_channel on each channel in the image. """
