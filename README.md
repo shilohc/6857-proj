@@ -41,3 +41,8 @@ Our code uses private key `rsa_keys/private.pem` and public key `rsa_keys/public
 ## Test images
 
 `test_image_1`: https://commons.wikimedia.org/wiki/File:AsterNovi-belgii-flower-1mb.jpg (CC BY-SA 3.0)
+
+## Additional Encryption Algorithms
+
+We tested encryption algorithms from the following GitHub repositories:
+- [pilotcheetos / Image-Encryption-using-Chaos](https://github.com/pilotcheetos/Image-Encryption-using-Chaos)
